@@ -75,22 +75,6 @@ from rest_framework import status
 from myapp.Models.Auth_models import User
 from myapp.serializers.User_serializers import RegisterSerializer, UserSerializer
 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def admin_create_user(request):
-    if request.user.role != 'admin':
-        return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
-
-    serializer = RegisterSerializer(data=request.data)
-    if serializer.is_valid():
-        serializer.save()
-        return Response({
-            "status": "success",
-            "message": "User created successfully",
-            "user": serializer.data
-        }, status=status.HTTP_201_CREATED)
-
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['DELETE'])
@@ -116,10 +100,31 @@ def admin_delete_user(request, user_id):
     }, status=status.HTTP_200_OK)
 
 
+
+from rest_framework.pagination import PageNumberPagination
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def admin_create_user(request):
+    if request.user.role != 'admin':
+        return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
+
+    serializer = RegisterSerializer(data=request.data, context={'request': request})
+    if serializer.is_valid():
+        serializer.save()
+        return Response({
+            "status": "success",
+            "message": "User created successfully",
+            "user": serializer.data
+        }, status=status.HTTP_201_CREATED)
+
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
 @api_view(['PUT', 'PATCH'])
 @permission_classes([IsAuthenticated])
 def admin_update_user(request, user_id):
-    # Only admin can update users
     if request.user.role != 'admin':
         return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
 
@@ -128,9 +133,16 @@ def admin_update_user(request, user_id):
     except User.DoesNotExist:
         return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
-    # partial=True allows PATCH (update only provided fields)
-    serializer = UserSerializer(user, data=request.data, partial=True)
+    serializer = UserSerializer(
+        user, data=request.data, partial=True,
+        context={'request': request}   # ← needed for full image URL
+    )
     if serializer.is_valid():
+        # Delete old image before saving new one
+        if 'profile_picture' in request.FILES and user.profile_picture:
+            from myapp.Utils.storage_utils import delete_image
+            delete_image(user.profile_picture.name)
+
         serializer.save()
         return Response({
             "status": "success",
@@ -140,21 +152,16 @@ def admin_update_user(request, user_id):
 
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-from rest_framework.pagination import PageNumberPagination
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def admin_get_all_users(request):
-    # Only admin can access
     if request.user.role != 'admin':
         return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
 
-    # Get query param ?role=student or ?role=consultant
     role = request.query_params.get('role', None)
-
     users = User.objects.all().order_by('id')
 
-    # Filter by role if provided
     if role:
         valid_roles = ['admin', 'student', 'consultant']
         if role not in valid_roles:
@@ -164,27 +171,19 @@ def admin_get_all_users(request):
             )
         users = users.filter(role=role)
 
-    # Pagination
     paginator = PageNumberPagination()
-    paginator.page_size = 10                        # 10 users per page
-    paginator.page_size_query_param = 'page_size'   # allow ?page_size=5
+    paginator.page_size = 10
+    paginator.page_size_query_param = 'page_size'
     paginator.max_page_size = 100
 
     paginated_users = paginator.paginate_queryset(users, request)
-    serializer = UserSerializer(paginated_users, many=True)
+    serializer = UserSerializer(
+        paginated_users, many=True,
+        context={'request': request}   # ← needed for full image URL
+    )
 
     return paginator.get_paginated_response({
         "status": "success",
         "total_users": users.count(),
         "users": serializer.data
     })
-
-
-# What you wantURLAll users (page 1)http://127.0.0.1:8000/api/v1/admin/users/Page 2
-# http://127.0.0.1:8000/api/v1/admin/users/?page=2Only students
-# http://127.0.0.1:8000/api/v1/admin/users/?role=studentOnly consultants
-# http://127.0.0.1:8000/api/v1/admin/users/?role=consultantStudents, 5 per page
-# http://127.0.0.1:8000/api/v1/admin/users/?role=student&page_size=5Students page 2
-# http://127.0.0.1:8000/api/v1/admin/users/?role=student&page=2
-# In Postman, add params via the Params tab — no need to type them in the URL manually:
-# KEYVALUErolestudentpage1page_size5

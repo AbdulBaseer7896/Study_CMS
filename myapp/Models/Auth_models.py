@@ -1,6 +1,8 @@
 # myapp/Models/Auth_models.py
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from myapp.Utils.storage_utils import get_storage
+
 
 
 class User(AbstractUser):
@@ -51,6 +53,14 @@ class User(AbstractUser):
         help_text="Consultant currently assigned to this student"
     )
     # ──────────────────────────────────────────────────────────────────
+
+    profile_picture = models.ImageField(
+        upload_to='study_cms/profile_pics/',
+        storage=get_storage,   # ← calls utility, switches with STORAGE_BACKEND
+        null=True,
+        blank=True
+    )
+
 
     # System fields
     created_at = models.DateTimeField(auto_now_add=True)

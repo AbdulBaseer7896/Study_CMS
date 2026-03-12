@@ -5,10 +5,9 @@ from myapp.Models.Auth_models import User
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
-
-    # Read-only name fields to show consultant names in response
     reference_name = serializers.SerializerMethodField(read_only=True)
     assigned_to_name = serializers.SerializerMethodField(read_only=True)
+    profile_picture_url = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = User
@@ -17,23 +16,21 @@ class RegisterSerializer(serializers.ModelSerializer):
             'username',
             'password',
             'role',
-
             'name',
             'father_name',
             'cnic',
             'dob',
             'address',
             'highest_education',
-
             'phone',
             'email',
             'father_phone',
-
-            # New 2 columns
             'reference',
             'assigned_to',
             'reference_name',
             'assigned_to_name',
+            'profile_picture',        # accepts image file upload
+            'profile_picture_url',    # returns full URL in response
         ]
 
     def get_reference_name(self, obj):
@@ -41,6 +38,14 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     def get_assigned_to_name(self, obj):
         return obj.assigned_to.name if obj.assigned_to else None
+
+    def get_profile_picture_url(self, obj):
+        if obj.profile_picture:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.profile_picture.url)
+            return obj.profile_picture.url
+        return None
 
     def validate_reference(self, value):
         if value and value.role != User.Role.CONSULTANT:
@@ -63,6 +68,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     reference_name = serializers.SerializerMethodField(read_only=True)
     assigned_to_name = serializers.SerializerMethodField(read_only=True)
+    profile_picture_url = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = User
@@ -70,27 +76,23 @@ class UserSerializer(serializers.ModelSerializer):
             'id',
             'username',
             'role',
-
             'name',
             'father_name',
             'cnic',
             'dob',
             'address',
             'highest_education',
-
             'phone',
             'email',
             'father_phone',
-
-            # New 2 columns
             'reference',
             'assigned_to',
             'reference_name',
             'assigned_to_name',
-
+            'profile_picture',
+            'profile_picture_url',
             'created_at',
         ]
-
         read_only_fields = ['id', 'created_at']
 
     def get_reference_name(self, obj):
@@ -98,6 +100,14 @@ class UserSerializer(serializers.ModelSerializer):
 
     def get_assigned_to_name(self, obj):
         return obj.assigned_to.name if obj.assigned_to else None
+
+    def get_profile_picture_url(self, obj):
+        if obj.profile_picture:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.profile_picture.url)
+            return obj.profile_picture.url
+        return None
 
     def validate_reference(self, value):
         if value and value.role != User.Role.CONSULTANT:

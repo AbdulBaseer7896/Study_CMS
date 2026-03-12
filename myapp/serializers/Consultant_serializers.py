@@ -5,10 +5,9 @@ from myapp.Models.Auth_models import User
 
 class ConsultantCreateStudentSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
-
-    # Show consultant name in response (read only)
     reference_name = serializers.SerializerMethodField(read_only=True)
     assigned_to_name = serializers.SerializerMethodField(read_only=True)
+    profile_picture_url = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = User
@@ -25,10 +24,12 @@ class ConsultantCreateStudentSerializer(serializers.ModelSerializer):
             'phone',
             'email',
             'father_phone',
-            'reference',          # FK — accepts consultant ID
-            'assigned_to',        # FK — accepts consultant ID
-            'reference_name',     # read only — shows consultant name
-            'assigned_to_name',   # read only — shows consultant name
+            'reference',
+            'assigned_to',
+            'reference_name',
+            'assigned_to_name',
+            'profile_picture',
+            'profile_picture_url',
         ]
 
     def get_reference_name(self, obj):
@@ -36,6 +37,14 @@ class ConsultantCreateStudentSerializer(serializers.ModelSerializer):
 
     def get_assigned_to_name(self, obj):
         return obj.assigned_to.name if obj.assigned_to else None
+
+    def get_profile_picture_url(self, obj):
+        if obj.profile_picture:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.profile_picture.url)
+            return obj.profile_picture.url
+        return None
 
     def validate_reference(self, value):
         if value and value.role != User.Role.CONSULTANT:
@@ -49,7 +58,7 @@ class ConsultantCreateStudentSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         password = validated_data.pop('password')
-        validated_data['role'] = User.Role.STUDENT   # always student
+        validated_data['role'] = User.Role.STUDENT
         user = User(**validated_data)
         user.set_password(password)
         user.save()
@@ -59,6 +68,7 @@ class ConsultantCreateStudentSerializer(serializers.ModelSerializer):
 class ConsultantUpdateStudentSerializer(serializers.ModelSerializer):
     reference_name = serializers.SerializerMethodField(read_only=True)
     assigned_to_name = serializers.SerializerMethodField(read_only=True)
+    profile_picture_url = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = User
@@ -76,6 +86,8 @@ class ConsultantUpdateStudentSerializer(serializers.ModelSerializer):
             'assigned_to',
             'reference_name',
             'assigned_to_name',
+            'profile_picture',
+            'profile_picture_url',
         ]
 
     def get_reference_name(self, obj):
@@ -83,6 +95,14 @@ class ConsultantUpdateStudentSerializer(serializers.ModelSerializer):
 
     def get_assigned_to_name(self, obj):
         return obj.assigned_to.name if obj.assigned_to else None
+
+    def get_profile_picture_url(self, obj):
+        if obj.profile_picture:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.profile_picture.url)
+            return obj.profile_picture.url
+        return None
 
     def validate_reference(self, value):
         if value and value.role != User.Role.CONSULTANT:

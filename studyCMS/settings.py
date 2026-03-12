@@ -66,6 +66,17 @@ REST_FRAMEWORK = {
     ),
 }
 
+
+# Cloudinary credentials
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': 'duu0haqtl',     # ← replace
+    'API_KEY':    '752526498282672',        # ← replace
+    'API_SECRET': 'WuXcFpYor3aB4CsKt5am8hoKsnI',     # ← replace
+}
+
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+
+
 APPEND_SLASH = False
 import os
 MEDIA_URL = '/media/'
