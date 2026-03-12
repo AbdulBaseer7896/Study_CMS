@@ -22,4 +22,5 @@ urlpatterns = [
     path('api/v1/', include('myapp.Urls.Auth_urls')),
     path('api/v1/', include('myapp.Urls.Consultant_urls')),
     path('api/v1/', include('myapp.Urls.Document_urls')),
+    path('api/v1/', include('myapp.Urls.Application_urls')),
 ]
