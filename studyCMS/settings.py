@@ -108,7 +108,7 @@ REST_FRAMEWORK = {
 
 
 import os
-    
+
 CLOUDINARY_STORAGE = {
     'CLOUD_NAME': os.getenv('CLOUDINARY_CLOUD_NAME'),
     'API_KEY': os.getenv('CLOUDINARY_API_KEY'),
@@ -119,6 +119,7 @@ DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
+    "https://studycms.netlify.app"
 ]
 
 APPEND_SLASH = False
