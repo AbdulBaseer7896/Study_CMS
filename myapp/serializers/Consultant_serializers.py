@@ -73,6 +73,7 @@ class ConsultantUpdateStudentSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
+            'id',
             'name',
             'father_name',
             'cnic',

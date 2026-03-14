@@ -337,3 +337,123 @@ def get_student_documents(request, student_id):
             "other_documents":    OtherDocumentSerializer(other_documents, many=True, context={'request': request}).data,
         }
     })
+
+
+# ════════════════════════════════════════════════════════════════════
+#  NEW — DELETE A SINGLE GROUPED FIELD (set to null in DB + Cloudinary)
+#  DELETE /documents/{student_id}/field/{field_name}/delete/
+# ════════════════════════════════════════════════════════════════════
+
+# All valid deletable file fields per group
+VALID_FILE_FIELDS = {
+    'identity': [
+        'cnic_front', 'cnic_back', 'father_cnic_front', 'father_cnic_back',
+        'passport_page1', 'passport_page2', 'b_form_front', 'b_form_back', 'domicile',
+    ],
+    'matric': [
+        'matric_degree_front', 'matric_degree_back',
+        'matric_result_card_front', 'matric_result_card_back',
+    ],
+    'inter': [
+        'inter_degree_front', 'inter_degree_back',
+        'inter_result_card_front', 'inter_result_card_back',
+    ],
+    'bs': ['bs_degree_front', 'bs_degree_back', 'bs_transcript_front', 'bs_transcript_back'],
+    'ms': ['ms_degree_front', 'ms_degree_back', 'ms_transcript_front', 'ms_transcript_back'],
+    'professional': ['cv', 'ielts_pte'],
+}
+
+ALL_VALID_FIELDS = [f for fields in VALID_FILE_FIELDS.values() for f in fields]
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_grouped_document_field(request, student_id, field_name):
+    if not has_access(request.user):
+        return Response({"error": "Permission denied."}, status=status.HTTP_403_FORBIDDEN)
+
+    if field_name not in ALL_VALID_FIELDS:
+        return Response({"error": f"Invalid field: {field_name}"}, status=status.HTTP_400_BAD_REQUEST)
+
+    student, doc = get_or_create_document_record(student_id)
+    if not student:
+        return Response({"error": "Student not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    file_field = getattr(doc, field_name, None)
+    if not file_field:
+        return Response({"error": "No file uploaded for this field."}, status=status.HTTP_404_NOT_FOUND)
+
+    # Delete from Cloudinary (the storage backend handles this)
+    file_field.delete(save=False)
+
+    # Set field to null and save
+    setattr(doc, field_name, None)
+    doc.save(update_fields=[field_name])
+
+    return Response({
+        "status": "success",
+        "message": f"{field_name} deleted successfully",
+    }, status=status.HTTP_200_OK)
+
+
+# ════════════════════════════════════════════════════════════════════
+#  NEW — DELETE EXPERIENCE LETTER
+#  DELETE /documents/experience-letter/{record_id}/delete/
+# ════════════════════════════════════════════════════════════════════
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_experience_letter(request, record_id):
+    if not has_access(request.user):
+        return Response({"error": "Permission denied."}, status=status.HTTP_403_FORBIDDEN)
+
+    try:
+        letter = ExperienceLetter.objects.get(id=record_id)
+    except ExperienceLetter.DoesNotExist:
+        return Response({"error": "Record not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    letter.file.delete(save=False)  # Delete from Cloudinary
+    letter.delete()
+
+    return Response({"status": "success", "message": "Experience letter deleted."}, status=status.HTTP_200_OK)
+
+
+# ════════════════════════════════════════════════════════════════════
+#  NEW — DELETE REFERENCE LETTER
+#  DELETE /documents/reference-letter/{record_id}/delete/
+# ════════════════════════════════════════════════════════════════════
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_reference_letter(request, record_id):
+    if not has_access(request.user):
+        return Response({"error": "Permission denied."}, status=status.HTTP_403_FORBIDDEN)
+
+    try:
+        letter = ReferenceLetter.objects.get(id=record_id)
+    except ReferenceLetter.DoesNotExist:
+        return Response({"error": "Record not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    letter.file.delete(save=False)
+    letter.delete()
+
+    return Response({"status": "success", "message": "Reference letter deleted."}, status=status.HTTP_200_OK)
+
+
+# ════════════════════════════════════════════════════════════════════
+#  NEW — DELETE OTHER DOCUMENT
+#  DELETE /documents/other/{record_id}/delete/
+# ════════════════════════════════════════════════════════════════════
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_other_document(request, record_id):
+    if not has_access(request.user):
+        return Response({"error": "Permission denied."}, status=status.HTTP_403_FORBIDDEN)
+
+    try:
+        doc = OtherDocument.objects.get(id=record_id)
+    except OtherDocument.DoesNotExist:
+        return Response({"error": "Record not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    doc.file.delete(save=False)
+    doc.delete()
+
+    return Response({"status": "success", "message": "Document deleted."}, status=status.HTTP_200_OK)

@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     # my modification
+    'corsheaders',
     'rest_framework',
     # 'myapp',
     'myapp.apps.MyappConfig',
@@ -47,13 +48,37 @@ INSTALLED_APPS = [
 AUTH_USER_MODEL = 'myapp.User'
 
 
-# Past by me
-from pathlib import Path
+# # Past by me
+# from pathlib import Path
+# from datetime import timedelta
+# SIMPLE_JWT = {
+#     "ACCESS_TOKEN_LIFETIME": timedelta(hours=1),
+#     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+#     "AUTH_HEADER_TYPES": ("Bearer",),
+# }
+
+
 from datetime import timedelta
+
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(hours=1),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+    # ── Token Lifetime ────────────────────────────────────────────────
+    "ACCESS_TOKEN_LIFETIME":  timedelta(minutes=3000),  # ← short lived
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),      # ← long lived
+
+    # ── Refresh Behavior ──────────────────────────────────────────────
+    "ROTATE_REFRESH_TOKENS":    True,   # ← gives new refresh token on every refresh
+    "BLACKLIST_AFTER_ROTATION": True,   # ← old refresh token becomes invalid
+
+    # ── Token Type ────────────────────────────────────────────────────
     "AUTH_HEADER_TYPES": ("Bearer",),
+    "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.AccessToken",),
+
+    # ── Algorithm ─────────────────────────────────────────────────────
+    "ALGORITHM": "HS256",
+    "SIGNING_KEY": SECRET_KEY,
+
+    # ── Token Claims ──────────────────────────────────────────────────
+    "UPDATE_LAST_LOGIN": True,   # ← updates last_login in DB on each login
 }
 
 
@@ -76,6 +101,9 @@ CLOUDINARY_STORAGE = {
 
 DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+]
 
 APPEND_SLASH = False
 import os
@@ -83,6 +111,7 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware', 
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
