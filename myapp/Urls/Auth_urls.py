@@ -2,13 +2,15 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-from myapp.Views.Auth_views import homepage , admin_login , admin_create_user, admin_delete_user, admin_update_user , admin_get_all_users
+from myapp.Views.Auth_views import (
+    homepage, admin_login, admin_create_user,
+    admin_delete_user, admin_update_user, admin_get_all_users,
+    me_update
+)
 
 urlpatterns = [
-    path('home', homepage , name="home"),
+    path('home', homepage, name="home"),
     path('login/', admin_login, name="admin_login"),
-
-
 
     # Admin User Management
     path('admin/users/create/', admin_create_user, name="admin_create_user"),
@@ -16,6 +18,8 @@ urlpatterns = [
     path('admin/users/<int:user_id>/update/', admin_update_user, name="admin_update_user"),
     path('admin/users/', admin_get_all_users, name="admin_get_all_users"),
 
+    # Self-update (works for all roles: admin, consultant, student)
+    path('me/update/', me_update, name="me_update"),
 ]
 
 # Serve uploaded files in development
