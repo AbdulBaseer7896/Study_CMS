@@ -194,34 +194,71 @@ class ApplicationDetailSerializer(serializers.ModelSerializer):
     def get_created_by_name(self, obj):
         return obj.created_by.name if obj.created_by else None
 
-
-# ════════════════════════════════════════════════════════════════════
-#  APPLICATION LIST SERIALIZER
-# ════════════════════════════════════════════════════════════════════
 class ApplicationListSerializer(serializers.ModelSerializer):
-    student_name    = serializers.SerializerMethodField()
-    modules_count   = serializers.SerializerMethodField()
+    student_name     = serializers.SerializerMethodField()
+    created_by_name  = serializers.SerializerMethodField()
+    modules_count    = serializers.SerializerMethodField()
+
+    # ✅ ADD THESE (you missed them)
+    modules          = ApplicationModuleSerializer(many=True, read_only=True)
+    extra_images     = ApplicationImageSerializer(many=True, read_only=True)
+
+    offer_letter_url = serializers.SerializerMethodField()
+    fee_slip_url     = serializers.SerializerMethodField()
 
     class Meta:
         model = Application
         fields = [
             'id',
-            'student',          
-            'student_name',
+            'student', 'student_name',
+            'created_by_name',
+
+            # University
             'application_name',
             'country',
             'university',
+            'city',
+            'university_portal_link',
+            'portal_login_id',
+            'portal_login_password',
+
+            # Course
             'degree_name',
             'course_title',
+            'modules',
             'modules_count',
-            'status',
+
+            # Fees
+            'apply_fee',
+            'yearly_fee',
+
+            # Dates
             'last_date_to_apply',
+            'last_date_fee_submit',
             'expected_offer_date',
+
+            # Status & Docs
+            'status',
+            'offer_letter', 'offer_letter_url',
+            'fee_slip', 'fee_slip_url',
+            'extra_images',
+
             'created_at',
+            'updated_at',
         ]
 
+    # ───── METHODS ─────
     def get_student_name(self, obj):
         return obj.student.name if obj.student else None
 
+    def get_created_by_name(self, obj):
+        return obj.created_by.name if obj.created_by else None
+
     def get_modules_count(self, obj):
         return obj.modules.count()
+
+    def get_offer_letter_url(self, obj):
+        return get_file_url(obj.offer_letter, self.context.get('request'))
+
+    def get_fee_slip_url(self, obj):
+        return get_file_url(obj.fee_slip, self.context.get('request'))
