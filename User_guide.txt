@@ -23,3 +23,9 @@
     
     python manage.py runserver
 
+
+python manage.py makemigrations
+
+python manage.py migrate
+
+PS D:\Bitnext\Study_CMS\Frontend>

@@ -7,17 +7,34 @@ from myapp.Models.Document_models import (
 
 
 # ── Shared URL helper ─────────────────────────────────────────────────
+# def get_file_url(obj_file, request):
+#     if obj_file:
+#         try:
+#             url = obj_file.url
+#             if request:
+#                 return request.build_absolute_uri(url)
+#             return url
+#         except Exception:
+#             return None
+#     return None
+
+
+
+# ── Shared URL helper ─────────────────────────────────────────────────
 def get_file_url(obj_file, request):
     if obj_file:
         try:
             url = obj_file.url
+            # If it's already an absolute URL (Cloudinary), return as-is
+            if url.startswith('http://') or url.startswith('https://'):
+                return url
+            # Only build absolute URI for relative local paths
             if request:
                 return request.build_absolute_uri(url)
             return url
         except Exception:
             return None
     return None
-
 
 # ════════════════════════════════════════════════════════════════════
 #  IDENTITY DOCUMENTS
