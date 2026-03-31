@@ -222,3 +222,24 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# ── Email Configuration (Gmail SMTP) ─────────────────────────────────
+EMAIL_BACKEND        = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST           = 'smtp.gmail.com'
+EMAIL_PORT           = 587
+EMAIL_USE_TLS        = True
+EMAIL_HOST_USER      = os.getenv('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD  = os.getenv('EMAIL_HOST_PASSWORD', '')
+DEFAULT_FROM_EMAIL   = os.getenv('EMAIL_HOST_USER', 'noreply@studycms.com')
+
+# ── Celery Configuration ──────────────────────────────────────────────
+CELERY_BROKER_URL         = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND     = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+CELERY_ACCEPT_CONTENT     = ['json']
+CELERY_TASK_SERIALIZER    = 'json'
+CELERY_RESULT_SERIALIZER  = 'json'
+CELERY_TIMEZONE           = 'UTC'
+CELERY_TASK_ALWAYS_EAGER  = False  # Set True only for testing without Redis
+
+# ── Add OTP app to installed apps ────────────────────────────────────
+INSTALLED_APPS += ['django_celery_results']
