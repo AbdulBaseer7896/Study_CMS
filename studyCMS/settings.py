@@ -115,7 +115,9 @@ CLOUDINARY_STORAGE = {
     'API_SECRET': os.getenv('CLOUDINARY_API_SECRET'),
 }
 
-DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+# DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+DEFAULT_FILE_STORAGE = 'myapp.Utils.pdf_storage.PDFAwareCloudinaryStorage'
+
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
