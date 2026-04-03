@@ -10,3 +10,7 @@ psycopg2-binary
 celery
 redis
 django-celery-results
+adrf
+channels
+channels-redis
+daphne

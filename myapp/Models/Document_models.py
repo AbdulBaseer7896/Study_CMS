@@ -1,5 +1,6 @@
-# myapp/Models/Document_models.py
+# myapp/Models/Document_models.py  (added upload_time tracking per field)
 from django.db import models
+from django.utils import timezone
 from myapp.Models.Auth_models import User
 
 
@@ -7,17 +8,11 @@ class StudentDocument(models.Model):
     """Single model for ALL student documents — grouped by category"""
 
     student = models.OneToOneField(
-        User,
-        on_delete=models.CASCADE,
-        related_name='documents',
-        limit_choices_to={'role': 'student'}
+        User, on_delete=models.CASCADE,
+        related_name='documents', limit_choices_to={'role': 'student'}
     )
-
     uploaded_by = models.ForeignKey(
-        User,
-        on_delete=models.SET_NULL,
-        null=True,
-        related_name='uploaded_documents'
+        User, on_delete=models.SET_NULL, null=True, related_name='uploaded_documents'
     )
 
     # ── IDENTITY DOCUMENTS ────────────────────────────────────────────
@@ -73,51 +68,78 @@ class StudentDocument(models.Model):
     ielts_pte_year            = models.CharField(max_length=10,  blank=True, null=True)
     ielts_pte_description     = models.TextField(blank=True, null=True)
 
+    # ── Per-field upload timestamps (for 15-min student edit window) ──
+    field_upload_times        = models.JSONField(default=dict, blank=True)
+    # e.g. {"cnic_front": "2025-01-01T10:00:00Z", ...}
+
     # ── System Fields ─────────────────────────────────────────────────
     created_at  = models.DateTimeField(auto_now_add=True)
     updated_at  = models.DateTimeField(auto_now=True)
 
+    def record_upload_time(self, field_name):
+        """Call after saving a new file to stamp the upload time."""
+        self.field_upload_times[field_name] = timezone.now().isoformat()
+        self.save(update_fields=['field_upload_times'])
+
+    def student_can_edit_field(self, field_name):
+        """Students may replace/delete within 15 min of first upload."""
+        ts = self.field_upload_times.get(field_name)
+        if not ts:
+            return True  # never uploaded → can upload
+        from datetime import datetime, timezone as dt_tz
+        upload_time = datetime.fromisoformat(ts)
+        if upload_time.tzinfo is None:
+            upload_time = upload_time.replace(tzinfo=dt_tz.utc)
+        window_end = upload_time + timezone.timedelta(minutes=15)
+        return timezone.now() < window_end
+
     def __str__(self):
-        return f"Documents — {self.student.name}"
+        return f"Documents of {self.student.name}"
 
 
 class ExperienceLetter(models.Model):
-    """Multiple experience letters per student"""
-    student         = models.ForeignKey(User, on_delete=models.CASCADE, related_name='experience_letters')
-    uploaded_by     = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='uploaded_experience_letters')
-    file            = models.FileField(upload_to='study_cms/professional/')
-    organization    = models.CharField(max_length=255, blank=True, null=True)
-    year            = models.CharField(max_length=10,  blank=True, null=True)
-    description     = models.TextField(blank=True, null=True)
-    created_at      = models.DateTimeField(auto_now_add=True)
+    student     = models.ForeignKey(User, on_delete=models.CASCADE, related_name='experience_letters',
+                                    limit_choices_to={'role': 'student'})
+    uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='uploaded_experience_letters')
+    file        = models.FileField(upload_to='study_cms/experience/')
+    title       = models.CharField(max_length=255, blank=True, null=True)
+    created_at  = models.DateTimeField(auto_now_add=True)
+
+    def student_can_edit(self):
+        window_end = self.created_at + timezone.timedelta(minutes=15)
+        return timezone.now() < window_end
 
     def __str__(self):
         return f"Experience Letter — {self.student.name}"
 
 
 class ReferenceLetter(models.Model):
-    """Multiple reference letters per student"""
-    student         = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reference_letters')
-    uploaded_by     = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='uploaded_reference_letters')
-    file            = models.FileField(upload_to='study_cms/professional/')
-    referee_name    = models.CharField(max_length=255, blank=True, null=True)
-    year            = models.CharField(max_length=10,  blank=True, null=True)
-    description     = models.TextField(blank=True, null=True)
-    created_at      = models.DateTimeField(auto_now_add=True)
+    student     = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reference_letters',
+                                    limit_choices_to={'role': 'student'})
+    uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='uploaded_reference_letters')
+    file        = models.FileField(upload_to='study_cms/reference/')
+    title       = models.CharField(max_length=255, blank=True, null=True)
+    created_at  = models.DateTimeField(auto_now_add=True)
+
+    def student_can_edit(self):
+        window_end = self.created_at + timezone.timedelta(minutes=15)
+        return timezone.now() < window_end
 
     def __str__(self):
         return f"Reference Letter — {self.student.name}"
 
 
 class OtherDocument(models.Model):
-    """Any other documents — training certs, etc."""
-    student         = models.ForeignKey(User, on_delete=models.CASCADE, related_name='other_documents')
-    uploaded_by     = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='uploaded_other_documents')
-    file            = models.FileField(upload_to='study_cms/other/')
-    document_name   = models.CharField(max_length=255, blank=True, null=True)
-    year            = models.CharField(max_length=10,  blank=True, null=True)
-    description     = models.TextField(blank=True, null=True)
-    created_at      = models.DateTimeField(auto_now_add=True)
+    student     = models.ForeignKey(User, on_delete=models.CASCADE, related_name='other_documents',
+                                    limit_choices_to={'role': 'student'})
+    uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='uploaded_other_documents')
+    file        = models.FileField(upload_to='study_cms/other/')
+    title       = models.CharField(max_length=255, blank=True, null=True)
+    created_at  = models.DateTimeField(auto_now_add=True)
+
+    def student_can_edit(self):
+        window_end = self.created_at + timezone.timedelta(minutes=15)
+        return timezone.now() < window_end
 
     def __str__(self):
         return f"Other Document — {self.student.name}"

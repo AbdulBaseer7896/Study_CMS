@@ -750,3 +750,41 @@ def send_application_updated_task(self, application_id, updated_fields, updated_
 
     except Exception as exc:
         raise self.retry(exc=exc)
+
+# ════════════════════════════════════════════════════════════════════
+#  TASK 6 — First message in a conversation (email notification)
+# ════════════════════════════════════════════════════════════════════
+@shared_task(bind=True, max_retries=3, default_retry_delay=30)
+def send_first_message_email_task(self, message_id):
+    try:
+        from myapp.Models.Chat_models import Message
+        msg  = Message.objects.select_related('sender', 'conversation').get(id=message_id)
+        conv = msg.conversation
+        sender = msg.sender
+
+        recipients = list(conv.participants.exclude(id=sender.id).values_list('email', 'name'))
+        if not recipients:
+            return
+
+        for email, name in recipients:
+            body = f"""
+            <p>Hello <strong style="color:#a5b4fc;">{name}</strong>,</p>
+            <p><strong>{sender.name}</strong> has started a new conversation with you on <strong>StudyCMS</strong>.</p>
+
+            {_info_table(
+                _info_row("From", sender.name) +
+                _info_row("Role", sender.role.capitalize()) +
+                _info_row("First Message", msg.content[:200] + ("..." if len(msg.content) > 200 else ""))
+            )}
+
+            <p>Log in to StudyCMS to view the full conversation and reply.</p>
+            <p style="color:#6366f1;font-weight:600;">StudyCMS Chat 💬</p>
+            """
+            html = _wrap_html(
+                "New Message on StudyCMS",
+                f"From {sender.name}",
+                body
+            )
+            _send(f"New message from {sender.name}", [email], html)
+    except Exception as exc:
+        raise self.retry(exc=exc)

@@ -29,3 +29,256 @@ python manage.py makemigrations
 python manage.py migrate
 
 PS D:\Bitnext\Study_CMS\Frontend>
+
+
+
+
+How to deployed it on the digital oceaon
+
+
+1) mkdir Study_CMS_General your folder name
+    cd  Study_CMS_General
+
+    git clone "https://github.com/AbdulBaseer7896/Study_CMS.git" .
+
+
+Step 1 — Install Python & system packages
+
+apt update && apt upgrade -y
+
+apt install -y python3 python3-pip python3-venv python3-dev build-essential libpq-dev redis-server nginx
+
+
+Step 2 — Create & activate virtual environment
+
+
+cd ~/Study_CMS_General
+python3 -m venv myvenv
+source myvenv/bin/activate
+
+
+Step 3 — Install requirements
+
+
+
+pip install --upgrade pip
+pip install -r requirements.txt
+pip install gunicorn
+
+
+
+
+Step 4 — Create .env file
+
+
+
+
+Step 5 — Run migrations & collect static
+
+python manage.py migrate
+python manage.py collectstatic --noinput
+
+
+
+Step 6 — Test manually first
+
+
+# Test Django
+gunicorn --bind 0.0.0.0:8000 studyCMS.wsgi:application
+
+# If it starts without errors, Ctrl+C
+# Test Celery
+celery -A studyCMS worker --loglevel=info
+# If tasks show, Ctrl+C
+
+
+Step 7 — Create Django systemd service
+
+nano /etc/systemd/system/studycmsgeneral.service
+
+
+
+[Unit]
+Description=StudyCMS Django (Gunicorn)
+After=network.target
+
+[Service]
+User=root
+Group=root
+WorkingDirectory=/root/Study_CMS_General
+EnvironmentFile=/root/Study_CMS_General/.env
+ExecStart=/root/Study_CMS_General/myvenv/bin/gunicorn \
+          --workers 3 \
+          --bind unix:/root/Study_CMS_General/studycms.sock \
+          studyCMS.wsgi:application
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+
+
+
+
+Step 8 — Create Celery systemd service
+
+nano /etc/systemd/system/studycms-general-celery.service
+
+
+[Unit]
+Description=StudyCMS Celery Worker
+After=network.target redis.service
+
+[Service]
+User=root
+Group=root
+WorkingDirectory=/root/Study_CMS_General
+EnvironmentFile=/root/Study_CMS_General/.env
+ExecStart=/root/Study_CMS_General/myvenv/bin/celery \
+          -A studyCMS worker \
+          --loglevel=info \
+          --concurrency=4
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+
+
+
+
+
+Step 9 — Enable & start all services
+
+
+# Start Redis
+systemctl enable redis-server
+systemctl start redis-server
+
+# Reload systemd
+systemctl daemon-reload
+
+# Enable services to start on boot
+systemctl enable studycmsgeneral
+systemctl enable studycms-general-celery
+
+# Start services
+systemctl start studycmsgeneral
+systemctl start studycms-general-celery
+
+
+
+Step 10 — Check status
+
+
+systemctl status studycmsgeneral
+systemctl status studycms-general-celery
+systemctl status redis-server
+
+
+
+
+
+Step 11 — Configure Nginx
+
+
+
+nano /etc/nginx/sites-available/studycmsgeneral
+
+
+
+server {
+    listen 80;
+    server_name 157.245.100.38;
+
+    client_max_body_size 20M;
+
+    location /static/ {
+        alias /root/Study_CMS_General/staticfiles/;
+    }
+
+    location / {
+        include proxy_params;
+        proxy_pass http://unix:/root/Study_CMS_General/studycms.sock;
+        proxy_read_timeout 300;
+        proxy_connect_timeout 300;
+    }
+}
+
+
+
+
+
+
+ln -s /etc/nginx/sites-available/studycmsgeneral /etc/nginx/sites-enabled/
+nginx -t          # should say "syntax is ok"
+systemctl restart nginx
+systemctl enable nginx
+
+
+Useful commands to remember
+
+# View live logs
+journalctl -u studycmsgeneral -f
+journalctl -u studycms-general-celery -f
+
+# Restart after code update
+git pull
+source myvenv/bin/activate
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py collectstatic --noinput
+systemctl restart studycmsgeneral
+systemctl restart studycms-general-celery
+
+# Check errors
+journalctl -u studycmsgeneral --since "5 min ago"
+
+═══════════════════════════════════════════════════════
+REDIS SETUP FOR LOCAL DEVELOPMENT (Windows)
+═══════════════════════════════════════════════════════
+
+Redis makes WebSocket chat faster by sharing messages across multiple server processes.
+Without Redis, the InMemoryChannelLayer is used automatically (works fine for single-process dev).
+
+To install Redis on Windows for the best chat performance:
+
+OPTION 1: WSL2 (Recommended)
+─────────────────────────────
+1. Open PowerShell as Administrator:
+   wsl --install
+2. In WSL terminal:
+   sudo apt update && sudo apt install redis-server
+   sudo service redis-server start
+3. In your .env file:
+   REDIS_URL=redis://localhost:6379/0
+4. Start Django:
+   python manage.py runserver
+
+OPTION 2: Windows Native (Memurai - Redis for Windows)
+────────────────────────────────────────────────────────
+1. Download Memurai from: https://www.memurai.com/
+2. Install and it runs as a Windows Service automatically
+3. In your .env file:
+   REDIS_URL=redis://localhost:6379/0
+
+OPTION 3: Docker
+─────────────────
+1. Install Docker Desktop
+2. Run: docker run -d -p 6379:6379 redis:alpine
+3. In your .env file:
+   REDIS_URL=redis://localhost:6379/0
+
+WITHOUT REDIS (current setup):
+────────────────────────────────
+- Chat works using InMemoryChannelLayer (no Redis needed)
+- Messages are delivered within the same process only
+- For single-user dev testing this is perfectly fine
+- The ECONNRESET errors in vite terminal are harmless noise from Django dev
+  server reloading and dropping WS connections — they don't affect functionality
+
+PRODUCTION DEPLOYMENT:
+──────────────────────
+Always use Redis in production. Set in your server .env:
+   REDIS_URL=redis://localhost:6379/0   (if Redis on same server)
+   REDIS_URL=redis://user:pass@host:6379/0  (remote Redis)
