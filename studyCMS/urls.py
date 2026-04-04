@@ -9,4 +9,5 @@ urlpatterns = [
     path('api/v1/', include('myapp.Urls.Application_urls')),
     path('api/v1/', include('myapp.Urls.Student_urls')),
     path('api/v1/', include('myapp.Urls.Chat_urls')),
+    path('api/v1/', include('myapp.Urls.Webhook_urls')),
 ]
